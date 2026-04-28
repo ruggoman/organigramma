@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Organigramma della Sicurezza – Suite Sicurezza</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#F0F4FA;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:#0D2B5E;color:white;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#topbar h1{font-size:15px;font-weight:600}
+#topbar span{font-size:11px;opacity:0.6;margin-left:4px}
+#app{display:flex;flex-direction:column;flex:1;overflow:hidden}
+#toolbar{display:flex;align-items:center;gap:5px;padding:7px 10px;background:#fff;border-bottom:1px solid #D6E4F0;flex-wrap:wrap;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.tb-sep{width:1px;height:22px;background:#D6E4F0;margin:0 3px;flex-shrink:0}
+.tb-btn{font-size:11px;padding:4px 10px;border:1px solid #ccd;border-radius:5px;background:#fff;color:#1A1A2E;cursor:pointer;white-space:nowrap;transition:background 0.12s}
+.tb-btn:hover{background:#EBF5FB}
+.tb-btn.active{background:#2E86C1;color:#fff;border-color:#2E86C1}
+.tb-btn.red{border-color:#C0392B;color:#C0392B}
+.tb-btn.red:hover{background:#C0392B;color:#fff}
+.tb-btn.pdf{background:#E74C3C;color:#fff;border-color:#C0392B;font-weight:600}
+.tb-btn.pdf:hover{background:#C0392B}
+.tb-btn:disabled{opacity:0.4;cursor:not-allowed}
+.tb-btn:disabled:hover{background:#fff}
+#status{font-size:11px;color:#555;padding:0 8px;flex:1;text-align:right}
+#canvas-wrap{flex:1;overflow:hidden;position:relative;background:#F8FAFD}
+#canvas-wrap.grab{cursor:grab}
+#canvas-wrap.grabbing{cursor:grabbing}
+#canvas-wrap.connect{cursor:crosshair}
+svg#cv{position:absolute;top:0;left:0}
+.node{cursor:move}
+.node:hover .body{filter:brightness(1.1)}
+.node.selected .body{stroke:#fff !important;stroke-width:3 !important;filter:drop-shadow(0 0 8px rgba(46,134,193,0.6))}
+.resize-handle{cursor:se-resize;fill:rgba(255,255,255,0.5)}
+.resize-handle:hover{fill:rgba(255,255,255,0.9)}
+.arrow{stroke:#2E86C1;stroke-width:2;fill:none;cursor:pointer}
+.arrow:hover{stroke-width:3.5}
+.arrow.selected{stroke:#E74C3C;stroke-width:2.5}
+#zoom-bar{position:absolute;bottom:12px;right:14px;display:flex;align-items:center;gap:5px;background:#fff;border:1px solid #D6E4F0;border-radius:7px;padding:4px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+#zoom-bar button{background:none;border:none;cursor:pointer;font-size:17px;color:#1A5276;line-height:1;padding:0 2px;font-weight:bold}
+#zoom-val{font-size:12px;color:#555;min-width:38px;text-align:center}
+#modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:100;align-items:center;justify-content:center}
+#modal-bg.show{display:flex}
+#modal{background:#fff;border-radius:10px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.18)}
+#modal h3{font-size:14px;font-weight:600;margin-bottom:14px;color:#0D2B5E}
+.m-label{font-size:12px;color:#666;margin-bottom:3px;display:block}
+.m-input{width:100%;border:1px solid #ccd;border-radius:5px;padding:6px 9px;font-size:13px;background:#fff;color:#1A1A2E;margin-bottom:10px;font-family:'Segoe UI',Arial,sans-serif}
+.m-input:focus{outline:none;border-color:#2E86C1}
+.m-row{display:flex;gap:8px;margin-top:2px}
+.m-row button{flex:1;padding:7px 0;font-size:13px;border-radius:5px;cursor:pointer;border:1px solid #ccd;background:#fff;color:#1A1A2E;font-family:'Segoe UI',Arial,sans-serif}
+.m-row button:hover{background:#EBF5FB}
+.m-row .ok{background:#2E86C1;color:#fff;border-color:#2E86C1}
+.m-row .ok:hover{background:#1A5276}
+#connect-tip{display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:#0D2B5E;color:#fff;font-size:12px;padding:6px 16px;border-radius:20px;pointer-events:none;white-space:nowrap}
+#modal-nota-bg.show{display:flex!important}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <h1>🏢 Organigramma della Sicurezza</h1>
+  <span>D.Lgs. 81/08 – Suite Sicurezza</span>
+</div>
+<div id="app">
+<div id="toolbar">
+  <span style="font-size:11px;color:#666">Aggiungi:</span>
+  <button class="tb-btn" onclick="addNodeU('DATORE DI LAVORO','Nome','#0D2B5E',true)">+ DdL</button>
+  <button class="tb-btn" onclick="addNodeU('RSPP','Nome','#1A5276')">+ RSPP</button>
+  <button class="tb-btn" onclick="addNodeU('MEDICO COMP.','Nome','#1A5276')">+ Medico</button>
+  <button class="tb-btn" onclick="addNodeU('DELEGATO','Nome','#2E86C1')">+ Delegato</button>
+  <button class="tb-btn" onclick="addNodeU('DIRIGENTE','Nome','#2980B9')">+ Dirigente</button>
+  <button class="tb-btn" onclick="addNodeU('PREPOSTO','Nome','#2E86C1')">+ Preposto</button>
+  <button class="tb-btn" onclick="addNodeU('MANSIONE','','#1A5276')">+ Mansione</button>
+  <button class="tb-btn" onclick="addNodeU('RLS','Nome','#B8860B')">+ RLS</button>
+  <button class="tb-btn" onclick="addNodeU('PRIMO SOCCORSO','Nomi...','#1E8449')">+ PS</button>
+  <button class="tb-btn" onclick="addNodeU('ANTINCENDIO','Nomi...','#C0392B')">+ AI</button>
+  <button class="tb-btn" onclick="addNota()">📝 + Nota</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn active" id="btn-sel" onclick="setMode('select')">▶ Seleziona</button>
+  <button class="tb-btn" id="btn-conn" onclick="setMode('connect')">↗ Collega</button>
+  <button class="tb-btn" id="btn-pan" onclick="setMode('pan')">✋ Sposta</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="toggleGrid()" id="btn-grid">⊞ Griglia</button>
+  <button class="tb-btn" onclick="autoLayout()">▦ Auto-layout</button>
+  <div class="tb-sep"></div>
+  <!-- ── NUOVI PULSANTI ── -->
+  <button class="tb-btn" id="btn-undo" onclick="undo()" title="Ctrl+Z" disabled>↩ Annulla</button>
+  <button class="tb-btn" id="btn-straight" onclick="toggleStraight()">⟶ Frecce rette</button>
+  <button class="tb-btn" id="btn-gray" onclick="toggleGrayscale()">◑ Scala grigi</button>
+  <!-- ───────────────── -->
+  <div class="tb-sep"></div>
+  <button class="tb-btn red" id="btn-del" onclick="deleteSelected()" style="display:none">✕ Elimina</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="importJSON()">↑ Importa JSON</button>
+  <button class="tb-btn" onclick="exportJSON()">↓ Esporta JSON</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn pdf" onclick="exportPDF()">📄 Stampa PDF</button>
+  <span id="status"></span>
+</div>
+<div id="canvas-wrap">
+  <svg id="cv">
+    <defs>
+      <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L9,3.5 L0,7 Z" fill="#2E86C1"/>
+      </marker>
+      <marker id="arr-red" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L9,3.5 L0,7 Z" fill="#E74C3C"/>
+      </marker>
+      <marker id="arr-gray" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+        <path d="M0,0 L9,3.5 L0,7 Z" fill="#666"/>
+      </marker>
+      <pattern id="grid-pat" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#D6E4F0" stroke-width="0.5"/>
+      </pattern>
+    </defs>
+    <rect id="grid-rect" width="100%" height="100%" fill="url(#grid-pat)" style="display:none"/>
+    <rect id="cv-bg" fill="transparent" width="100%" height="100%"/>
+    <g id="arrows-layer"></g>
+    <g id="nodes-layer"></g>
+  </svg>
+  <div id="connect-tip">Clicca la casella di destinazione</div>
+</div>
+<div id="zoom-bar">
+  <button onclick="zoom(-0.15)" title="Zoom out">−</button>
+  <span id="zoom-val">100%</span>
+  <button onclick="zoom(+0.15)" title="Zoom in">+</button>
+  <button onclick="resetView()" style="font-size:13px" title="Reset">↺</button>
+</div>
+</div>
+
+<div id="modal-bg">
+<div id="modal">
+  <h3>✏ Modifica casella</h3>
+  <label class="m-label">Ruolo / Titolo</label>
+  <input class="m-input" id="m-role" type="text"/>
+  <label class="m-label">Nome / Contenuto (Invio per andare a capo)</label>
+  <textarea class="m-input" id="m-name" rows="4" style="resize:vertical"></textarea>
+  <label class="m-label">Colore</label>
+  <select class="m-input" id="m-color">
+    <option value="#0D2B5E">Blu scuro — Datore di Lavoro</option>
+    <option value="#1A5276">Blu medio — RSPP / Medico</option>
+    <option value="#2E86C1">Blu chiaro — Delegato</option>
+    <option value="#2980B9">Blu — Dirigente / Preposto</option>
+    <option value="#B8860B">Ocra — RLS</option>
+    <option value="#1E8449">Verde — Primo Soccorso</option>
+    <option value="#C0392B">Rosso — Antincendio</option>
+  </select>
+  <div class="m-row">
+    <button onclick="closeModal()">Annulla</button>
+    <button class="ok" onclick="saveModal()">✓ Salva</button>
+  </div>
+</div>
+</div>
+<div id="modal-nota-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:100;align-items:center;justify-content:center" class="">
+<div style="background:#fff;border-radius:10px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+  <h3 style="font-size:14px;font-weight:600;margin-bottom:14px;color:#0D2B5E">📝 Modifica Nota</h3>
+  <label class="m-label">Testo nota (Invio per andare a capo)</label>
+  <textarea class="m-input" id="mn-text" rows="5" style="resize:vertical"></textarea>
+  <div class="m-row">
+    <button onclick="closeModalNota()">Annulla</button>
+    <button class="ok" onclick="saveModalNota()">✓ Salva</button>
+  </div>
+</div>
+</div>
+<input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileLoad(event)"/>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+let nodes=[],arrows=[],nextId=1;
+let selected=null,mode='select',connectFrom=null;
+let dragNode=null,dragOx=0,dragOy=0;
+let resizeNode=null,resizeOx=0,resizeOy=0,resizeW0=0,resizeH0=0;
+let panStart=null,panOx=0,panOy=0;
+let scale=1,panX=60,panY=20;
+let gridOn=false,editingId=null;
+let aziendaName='';
+
+// ═══════════════════════════════════════════════════
+//  NUOVE VARIABILI DI STATO
+// ═══════════════════════════════════════════════════
+let straightArrows = false;   // false = curve, true = rette
+let grayscaleMode  = false;   // false = colori originali, true = scala grigi
+
+// ── UNDO stack ──
+// Ogni elemento è uno snapshot: { nodes: [...], arrows: [...] }
+// Snapshot eseguito PRIMA di ogni modifica, max 50 livelli
+const UNDO_MAX = 50;
+let undoStack = [];
+
+/** Salva lo stato corrente nello stack undo */
+function pushUndo(){
+  undoStack.push({
+    nodes: JSON.parse(JSON.stringify(nodes)),
+    arrows: JSON.parse(JSON.stringify(arrows))
+  });
+  if(undoStack.length > UNDO_MAX) undoStack.shift();
+  document.getElementById('btn-undo').disabled = false;
+}
+
+/** Ripristina l'ultimo stato salvato */
+function undo(){
+  if(!undoStack.length) return;
+  const snap = undoStack.pop();
+  nodes  = snap.nodes;
+  arrows = snap.arrows;
+  // Ricalcola nextId
+  const allIds = nodes.map(n=>n.id).concat(arrows.map(a=>a.id));
+  nextId = allIds.length ? Math.max(...allIds)+1 : 1;
+  // Ridisegna tutto
+  const layer = document.getElementById('nodes-layer');
+  layer.innerHTML = '';
+  nodes.forEach(n => layer.appendChild(createNodeEl(n)));
+  selectItem(null);
+  renderArrows();
+  if(!undoStack.length) document.getElementById('btn-undo').disabled = true;
+  setStatus('Modifica annullata');setTimeout(()=>setStatus(''),1800);
+}
+
+// ── Keyboard shortcut Ctrl+Z ──
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='z' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
+    e.preventDefault(); undo();
+  }
+  if((e.key==='Delete'||e.key==='Backspace')&&selected&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) deleteSelected();
+  if(e.key==='Escape'){setMode('select');closeModal();}
+});
+
+// ═══════════════════════════════════════════════════
+//  PALETTE GRIGIO — mappa colore→grigio
+// ═══════════════════════════════════════════════════
+// Associa ogni colore "di ruolo" al corrispondente tono di grigio
+const GRAY_MAP = {
+  '#0D2B5E':'#2C2C2C',   // Blu scuro → grigio molto scuro
+  '#1A5276':'#4A4A4A',   // Blu medio → grigio scuro
+  '#2E86C1':'#7A7A7A',   // Blu chiaro → grigio medio
+  '#2980B9':'#6A6A6A',   // Blu → grigio medio-scuro
+  '#B8860B':'#8A8A8A',   // Ocra → grigio medio
+  '#1E8449':'#5E5E5E',   // Verde → grigio
+  '#C0392B':'#555555',   // Rosso → grigio medio-scuro
+};
+
+/** Converte un hex in scala di grigi (luminanza percettiva) */
+function toGray(hex){
+  if(GRAY_MAP[hex]) return GRAY_MAP[hex];
+  const [r,g,b]=hexToRgb(hex);
+  const l=Math.round(0.299*r+0.587*g+0.114*b);
+  return '#'+l.toString(16).padStart(2,'0').repeat(3);
+}
+
+/** Restituisce il colore effettivo (tenendo conto modalità grigio) */
+function effectiveColor(hex){
+  return grayscaleMode ? toGray(hex) : hex;
+}
+
+/** Toggle scala di grigi */
+function toggleGrayscale(){
+  grayscaleMode = !grayscaleMode;
+  const btn = document.getElementById('btn-gray');
+  btn.classList.toggle('active', grayscaleMode);
+  btn.textContent = grayscaleMode ? '◑ Colori originali' : '◑ Scala grigi';
+  // Ridisegna tutti i nodi e le frecce
+  nodes.forEach(n => refreshNode(n));
+  renderArrows();
+}
+
+/** Toggle frecce rette/curve */
+function toggleStraight(){
+  straightArrows = !straightArrows;
+  const btn = document.getElementById('btn-straight');
+  btn.classList.toggle('active', straightArrows);
+  btn.textContent = straightArrows ? '⟶ Frecce curve' : '⟶ Frecce rette';
+  renderArrows();
+}
+
+// ═══════════════════════════════════════════════════
+//  COSTANTI DEFAULT
+// ═══════════════════════════════════════════════════
+const DEF_W=190, DEF_HH=26, LINE_H=17, PAD_V=10, MIN_W=80, MIN_H=50;
+
+function autoH(n){
+  const lines=(n.name||'').split('\n').filter(l=>l.trim()!=='');
+  const nLines=Math.max(1,lines.length);
+  return DEF_HH + PAD_V + nLines*LINE_H + PAD_V;
+}
+// ═══════════════════════════════════════════════════
+//  NODO NOTA — larghezza e altezza
+// ═══════════════════════════════════════════════════
+const NOTA_W=220, NOTA_PAD=10, NOTA_LINE_H=16;
+
+function notaH(n){
+  const lines=(n.name||' ').split('\n').filter(l=>l.trim()!=='');
+  return NOTA_PAD + Math.max(1,lines.length)*NOTA_LINE_H + NOTA_PAD;
+}
+
+function nodeW(n){ return n.isNota ? (n.w||NOTA_W) : (n.w||DEF_W); }
+function nodeH(n){
+  if(n.isNota) return n.autoH!==false ? notaH(n) : (n.h||notaH(n));
+  return n.autoH!==false ? autoH(n) : (n.h||autoH(n));
+}
+
+function darken(hex,a=50){return '#'+[1,3,5].map(i=>Math.max(0,parseInt(hex.slice(i,i+2),16)-a).toString(16).padStart(2,'0')).join('');}
+function hexToRgb(hex){return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));}
+
+function svgPoint(e){
+  const r=document.getElementById('canvas-wrap').getBoundingClientRect();
+  return {x:(e.clientX-r.left-panX)/scale,y:(e.clientY-r.top-panY)/scale};
+}
+function applyTransform(){
+  const t=`translate(${panX},${panY}) scale(${scale})`;
+  document.getElementById('nodes-layer').setAttribute('transform',t);
+  document.getElementById('arrows-layer').setAttribute('transform',t);
+  document.getElementById('grid-pat').setAttribute('patternTransform',`translate(${panX%20},${panY%20}) scale(${scale})`);
+  document.getElementById('zoom-val').textContent=Math.round(scale*100)+'%';
+  renderArrows();
+}
+function zoom(delta,cx,cy){
+  const w=document.getElementById('canvas-wrap');
+  if(cx===undefined){cx=w.clientWidth/2;cy=w.clientHeight/2;}
+  const ns=Math.min(3,Math.max(0.15,scale+delta));
+  panX=cx-(cx-panX)*(ns/scale);panY=cy-(cy-panY)*(ns/scale);scale=ns;applyTransform();
+}
+function resetView(){scale=1;panX=60;panY=20;applyTransform();}
+document.getElementById('canvas-wrap').addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=document.getElementById('canvas-wrap').getBoundingClientRect();
+  zoom(e.deltaY<0?0.1:-0.1,e.clientX-r.left,e.clientY-r.top);
+},{passive:false});
+
+function toggleGrid(){
+  gridOn=!gridOn;
+  document.getElementById('grid-rect').style.display=gridOn?'':'none';
+  document.getElementById('btn-grid').classList.toggle('active',gridOn);
+}
+function snap(v){return gridOn?Math.round(v/20)*20:v;}
+function setMode(m){
+  mode=m;connectFrom=null;
+  ['sel','conn','pan'].forEach(id=>document.getElementById('btn-'+id)?.classList.remove('active'));
+  ({select:'sel',connect:'conn',pan:'pan'}[m])&&document.getElementById('btn-'+({select:'sel',connect:'conn',pan:'pan'}[m])).classList.add('active');
+  document.getElementById('canvas-wrap').className=m==='pan'?'grab':m==='connect'?'connect':'';
+  document.getElementById('connect-tip').style.display='none';
+  setStatus(m==='pan'?'Trascina per navigare':'');
+}
+function setStatus(t){document.getElementById('status').textContent=t;}
+
+// ═══════════════════════════════════════════════════
+//  CREA NODO — usa effectiveColor; gestisce nodi nota
+// ═══════════════════════════════════════════════════
+function createNodeEl(n){
+  const g=document.createElementNS(NS,'g');
+  g.setAttribute('class','node'+(selected==='n'+n.id?' selected':''));
+  g.setAttribute('id','n'+n.id);
+  g.setAttribute('transform',`translate(${n.x},${n.y})`);
+
+  // ── NOTA: box trasparente con bordo semplice ──
+  if(n.isNota){
+    const w=nodeW(n), h=nodeH(n);
+    const body=document.createElementNS(NS,'rect');
+    body.setAttribute('class','body');
+    body.setAttribute('width',w);body.setAttribute('height',h);
+    body.setAttribute('rx',5);body.setAttribute('fill','rgba(255,255,250,0.92)');
+    body.setAttribute('stroke','#888');body.setAttribute('stroke-width','1.5');
+    body.setAttribute('stroke-dasharray','5,3');
+    g.appendChild(body);
+    // Testo multiriga
+    const lines=(n.name||'').split('\n');
+    lines.forEach((ln,i)=>{
+      const tn=document.createElementNS(NS,'text');
+      tn.setAttribute('x',w/2);
+      tn.setAttribute('y',NOTA_PAD+NOTA_LINE_H*0.82+i*NOTA_LINE_H);
+      tn.setAttribute('text-anchor','middle');
+      tn.setAttribute('fill','#222');
+      tn.setAttribute('font-size','12');
+      tn.setAttribute('font-style','italic');
+      tn.setAttribute('font-family','Segoe UI,Arial,sans-serif');
+      const maxChars=Math.floor(w/5.5);
+      tn.textContent=ln.length>maxChars?ln.slice(0,maxChars-1)+'…':ln;
+      g.appendChild(tn);
+    });
+    // Handle resize
+    const RH=10,rh=document.createElementNS(NS,'polygon');
+    rh.setAttribute('class','resize-handle');
+    rh.setAttribute('points',`${w-RH},${h} ${w},${h-RH} ${w},${h}`);
+    rh.setAttribute('fill','rgba(0,0,0,0.15)');
+    rh.addEventListener('mousedown',e=>{
+      e.stopPropagation();pushUndo();
+      resizeNode=n.id;const p=svgPoint(e);
+      resizeOx=p.x;resizeOy=p.y;resizeW0=nodeW(n);resizeH0=nodeH(n);
+      n.autoH=false;document.getElementById('canvas-wrap').style.cursor='se-resize';
+    });
+    g.appendChild(rh);
+    g.addEventListener('mousedown',e=>{e.stopPropagation();onNodeDown(e,n.id);});
+    g.addEventListener('dblclick',e=>{e.stopPropagation();openModalNota(n.id);});
+    return g;
+  }
+
+  // ── NODO STANDARD ──
+  const w=nodeW(n), h=nodeH(n), hh=DEF_HH;
+  const c = effectiveColor(n.color);
+
+  // Ombra
+  const sh=document.createElementNS(NS,'rect');
+  sh.setAttribute('x',3);sh.setAttribute('y',3);
+  sh.setAttribute('width',w);sh.setAttribute('height',h);
+  sh.setAttribute('rx',7);sh.setAttribute('fill',grayscaleMode?'#AAAAAA':'#C0CDE0');sh.setAttribute('opacity','0.5');
+  g.appendChild(sh);
+
+  // Corpo principale
+  const body=document.createElementNS(NS,'rect');
+  body.setAttribute('class','body');
+  body.setAttribute('width',w);body.setAttribute('height',h);
+  body.setAttribute('rx',7);body.setAttribute('fill',c);
+  body.setAttribute('stroke','rgba(255,255,255,0.5)');body.setAttribute('stroke-width','1.5');
+  g.appendChild(body);
+
+  // Header scuro
+  const hdr=document.createElementNS(NS,'rect');
+  hdr.setAttribute('width',w);hdr.setAttribute('height',hh);
+  hdr.setAttribute('rx',6);hdr.setAttribute('fill',darken(c));
+  g.appendChild(hdr);
+  const hdrb=document.createElementNS(NS,'rect');
+  hdrb.setAttribute('y',hh-5);hdrb.setAttribute('width',w);hdrb.setAttribute('height',5);
+  hdrb.setAttribute('fill',darken(c));g.appendChild(hdrb);
+
+  // Testo ruolo
+  const tr=document.createElementNS(NS,'text');
+  tr.setAttribute('x',w/2);tr.setAttribute('y',14);
+  tr.setAttribute('text-anchor','middle');tr.setAttribute('fill','white');
+  tr.setAttribute('font-size','13');tr.setAttribute('font-weight','bold');
+  tr.setAttribute('font-family','Segoe UI,Arial,sans-serif');
+  tr.textContent=n.role.length>Math.floor(w/7)?n.role.slice(0,Math.floor(w/7)-1)+'…':n.role;
+  g.appendChild(tr);
+
+  // Testo nome – multiriga
+  const lines=(n.name||'').split('\n');
+  const startY=hh+PAD_V+LINE_H*0.75;
+  lines.forEach((ln,i)=>{
+    const tn=document.createElementNS(NS,'text');
+    tn.setAttribute('x',w/2);tn.setAttribute('y',startY+i*LINE_H);
+    tn.setAttribute('text-anchor','middle');tn.setAttribute('fill','white');
+    tn.setAttribute('font-size',n.bold?'15':'13');
+    tn.setAttribute('font-weight',n.bold?'bold':'normal');
+    tn.setAttribute('font-family','Segoe UI,Arial,sans-serif');
+    const maxChars=Math.floor(w/6.5);
+    tn.textContent=ln.length>maxChars?ln.slice(0,maxChars-1)+'…':ln;
+    g.appendChild(tn);
+  });
+
+  // Handle resize
+  const RH=10;
+  const rh=document.createElementNS(NS,'polygon');
+  rh.setAttribute('class','resize-handle');
+  rh.setAttribute('points',`${w-RH},${h} ${w},${h-RH} ${w},${h}`);
+  rh.setAttribute('fill','rgba(255,255,255,0.35)');
+  rh.addEventListener('mousedown',e=>{
+    e.stopPropagation();
+    pushUndo();
+    resizeNode=n.id;
+    const p=svgPoint(e);
+    resizeOx=p.x;resizeOy=p.y;
+    resizeW0=nodeW(n);resizeH0=nodeH(n);
+    n.autoH=false;
+    document.getElementById('canvas-wrap').style.cursor='se-resize';
+  });
+  g.appendChild(rh);
+
+  g.addEventListener('mousedown',e=>{e.stopPropagation();onNodeDown(e,n.id);});
+  g.addEventListener('dblclick',e=>{e.stopPropagation();openModal(n.id);});
+  return g;
+}
+
+function refreshNode(n){
+  const old=document.getElementById('n'+n.id);
+  const el=createNodeEl(n);
+  old?old.replaceWith(el):document.getElementById('nodes-layer').appendChild(el);
+}
+
+// ── addNode con undo ──
+function addNode(role,name,color,bold,x,y){
+  const n={id:nextId++,role,name:name||'',color,bold:!!bold,autoH:true,
+    x:snap(x!==undefined?x:Math.round(100+Math.random()*600)),
+    y:snap(y!==undefined?y:Math.round(60+Math.random()*300))};
+  nodes.push(n);
+  document.getElementById('nodes-layer').appendChild(createNodeEl(n));
+  selectItem('n'+n.id);return n;
+}
+
+/** Wrapper addNode con snapshot undo */
+function addNodeU(role,name,color,bold,x,y){
+  pushUndo();
+  return addNode(role,name,color,bold,x,y);
+}
+
+/** Aggiunge un nodo nota */
+function addNota(){
+  pushUndo();
+  const n={id:nextId++,isNota:true,role:'__nota__',name:'Inserire testo nota…',color:'#ffffff',bold:false,autoH:true,
+    x:snap(Math.round(150+Math.random()*500)),
+    y:snap(Math.round(80+Math.random()*300))};
+  nodes.push(n);
+  document.getElementById('nodes-layer').appendChild(createNodeEl(n));
+  selectItem('n'+n.id);
+  setTimeout(()=>openModalNota(n.id),80);
+}
+
+// ── Modal nota (solo textarea, senza colore/ruolo) ──
+let editingNotaId=null;
+function openModalNota(id){
+  editingNotaId=id;
+  const n=nodes.find(x=>x.id===id);
+  document.getElementById('mn-text').value=n.name;
+  document.getElementById('modal-nota-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('mn-text').focus(),50);
+}
+function closeModalNota(){document.getElementById('modal-nota-bg').classList.remove('show');editingNotaId=null;}
+function saveModalNota(){
+  pushUndo();
+  const n=nodes.find(x=>x.id===editingNotaId);
+  n.name=document.getElementById('mn-text').value||'';
+  if(n.autoH!==false) n.autoH=true;
+  refreshNode(n);renderArrows();closeModalNota();
+}
+document.getElementById('modal-nota-bg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModalNota();});
+
+// ═══════════════════════════════════════════════════
+//  RENDER FRECCE — supporta rette e curve
+// ═══════════════════════════════════════════════════
+function arrowEndpoints(a){
+  const f=nodes.find(n=>n.id===a.from),t=nodes.find(n=>n.id===a.to);
+  if(!f||!t) return null;
+  return {fx:f.x+nodeW(f)/2,fy:f.y+nodeH(f),tx:t.x+nodeW(t)/2,ty:t.y};
+}
+
+function arrowPath(fx,fy,tx,ty){
+  if(straightArrows){
+    // Freccia retta con spezzata ortogonale (fy→mid→ty)
+    const my=(fy+ty)/2;
+    return `M${fx},${fy} L${fx},${my} L${tx},${my} L${tx},${ty}`;
+  } else {
+    const my=(fy+ty)/2;
+    return `M${fx},${fy} C${fx},${my} ${tx},${my} ${tx},${ty}`;
+  }
+}
+
+function renderArrows(){
+  const layer=document.getElementById('arrows-layer');layer.innerHTML='';
+  const arrowColor = grayscaleMode ? '#666' : '#2E86C1';
+  const markerNorm = grayscaleMode ? 'url(#arr-gray)' : 'url(#arr)';
+  // Aggiorna colore marker grigio
+  document.querySelector('#arr-gray path').setAttribute('fill', grayscaleMode ? '#666' : '#2E86C1');
+
+  arrows.forEach(a=>{
+    const ep=arrowEndpoints(a);if(!ep) return;
+    const {fx,fy,tx,ty}=ep;
+    const isSel=selected==='a'+a.id;
+    const d=arrowPath(fx,fy,tx,ty);
+
+    const hit=document.createElementNS(NS,'path');
+    hit.setAttribute('d',d);
+    hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width','14');hit.setAttribute('fill','none');
+    hit.style.cursor='pointer';hit.addEventListener('click',e=>{e.stopPropagation();selectItem('a'+a.id);});
+    layer.appendChild(hit);
+
+    const path=document.createElementNS(NS,'path');
+    path.setAttribute('d',d);
+    path.setAttribute('class','arrow'+(isSel?' selected':''));
+    if(!isSel) path.setAttribute('stroke', arrowColor);
+    path.setAttribute('marker-end',isSel?'url(#arr-red)':markerNorm);
+    path.setAttribute('id','a'+a.id);layer.appendChild(path);
+  });
+}
+
+function selectItem(id){
+  selected=id;
+  document.querySelectorAll('.node').forEach(el=>el.classList.remove('selected'));
+  if(id&&id[0]==='n') document.getElementById(id)?.classList.add('selected');
+  document.getElementById('btn-del').style.display=id?'':'none';
+  renderArrows();
+}
+
+// ── mousedown su nodo — snapshot solo al primo click (non during drag) ──
+let _didPushForDrag=false;
+function onNodeDown(e,id){
+  if(mode==='connect'){
+    if(!connectFrom){connectFrom=id;document.getElementById('connect-tip').style.display='block';}
+    else if(connectFrom!==id){
+      pushUndo();
+      if(!arrows.find(a=>a.from===connectFrom&&a.to===id)) arrows.push({id:nextId++,from:connectFrom,to:id});
+      renderArrows();connectFrom=null;document.getElementById('connect-tip').style.display='none';setMode('select');
+    }
+    return;
+  }
+  if(mode==='select'){
+    selectItem('n'+id);
+    const p=svgPoint(e),n=nodes.find(x=>x.id===id);
+    dragNode=id;dragOx=p.x-n.x;dragOy=p.y-n.y;
+    _didPushForDrag=false;
+  }
+}
+
+document.getElementById('cv-bg').addEventListener('mousedown',e=>{
+  if(mode==='pan'){document.getElementById('canvas-wrap').className='grabbing';panStart={x:e.clientX,y:e.clientY};panOx=panX;panOy=panY;}
+  else if(mode==='select') selectItem(null);
+});
+
+document.addEventListener('mousemove',e=>{
+  // Resize
+  if(resizeNode!==null){
+    const p=svgPoint(e);
+    const n=nodes.find(x=>x.id===resizeNode);
+    const newW=Math.max(MIN_W,snap(resizeW0+(p.x-resizeOx)));
+    const newH=Math.max(MIN_H,snap(resizeH0+(p.y-resizeOy)));
+    n.w=newW;n.h=newH;n.autoH=false;
+    refreshNode(n);renderArrows();return;
+  }
+  // Drag nodo
+  if(dragNode!==null&&mode==='select'){
+    if(!_didPushForDrag){pushUndo();_didPushForDrag=true;}
+    const p=svgPoint(e),n=nodes.find(x=>x.id===dragNode);
+    n.x=snap(p.x-dragOx);n.y=snap(p.y-dragOy);
+    document.getElementById('n'+dragNode).setAttribute('transform',`translate(${n.x},${n.y})`);
+    renderArrows();return;
+  }
+  // Pan
+  if(panStart&&mode==='pan'){panX=panOx+(e.clientX-panStart.x);panY=panOy+(e.clientY-panStart.y);applyTransform();}
+});
+
+document.addEventListener('mouseup',()=>{
+  resizeNode=null;dragNode=null;panStart=null;_didPushForDrag=false;
+  document.getElementById('canvas-wrap').style.cursor='';
+  if(mode==='pan') document.getElementById('canvas-wrap').className='grab';
+});
+
+function deleteSelected(){
+  if(!selected) return;
+  pushUndo();
+  if(selected[0]==='n'){
+    const id=parseInt(selected.slice(1));
+    nodes=nodes.filter(n=>n.id!==id);arrows=arrows.filter(a=>a.from!==id&&a.to!==id);
+    document.getElementById(selected)?.remove();renderArrows();
+  } else if(selected[0]==='a'){
+    arrows=arrows.filter(a=>a.id!==parseInt(selected.slice(1)));renderArrows();
+  }
+  selectItem(null);
+}
+
+function openModal(id){
+  editingId=id;
+  const n=nodes.find(x=>x.id===id);
+  document.getElementById('m-role').value=n.role;
+  document.getElementById('m-name').value=n.name;
+  const sel=document.getElementById('m-color');
+  if(![...sel.options].some(o=>o.value===n.color)){const o=document.createElement('option');o.value=n.color;o.textContent='Custom';sel.appendChild(o);}
+  sel.value=n.color;
+  document.getElementById('modal-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('m-role').focus(),50);
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('show');editingId=null;}
+function saveModal(){
+  pushUndo();
+  const n=nodes.find(x=>x.id===editingId);
+  n.role=document.getElementById('m-role').value.trim()||n.role;
+  n.name=document.getElementById('m-name').value;
+  n.color=document.getElementById('m-color').value;
+  if(n.autoH!==false) n.autoH=true;
+  refreshNode(n);renderArrows();closeModal();
+}
+document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+function autoLayout(){
+  pushUndo();
+  const VG=55,HG=40,cx=440;
+  const order=['DATORE DI LAVORO','DELEGATO','DIRIGENTE'];
+  let y=70;
+  order.forEach(r=>{
+    nodes.filter(n=>n.role===r).forEach(n=>{n.x=snap(cx-nodeW(n)/2);n.y=snap(y);});
+    if(nodes.some(n=>n.role===r)) y+=nodeH(nodes.find(n=>n.role===r)||{name:'',w:DEF_W})+VG;
+  });
+  nodes.filter(n=>n.role==='RSPP').forEach(n=>{n.x=snap(cx-nodeW(n)-90);n.y=70;});
+  nodes.filter(n=>n.role==='MEDICO COMP.').forEach(n=>{n.x=snap(cx+90);n.y=70;});
+  const bots=nodes.filter(n=>['PREPOSTO','MANSIONE'].includes(n.role));
+  const bW=bots.length*(DEF_W+HG)-HG;
+  bots.forEach((n,i)=>{n.x=snap(cx-bW/2+i*(DEF_W+HG));n.y=snap(y);});
+  nodes.filter(n=>['RLS','PRIMO SOCCORSO','ANTINCENDIO'].includes(n.role)).forEach((n,i)=>{
+    n.x=830;
+    const prev=nodes.filter(nn=>['RLS','PRIMO SOCCORSO','ANTINCENDIO'].includes(nn.role)).slice(0,i);
+    n.y=snap(70+prev.reduce((s,nn)=>s+nodeH(nn)+20,0));
+  });
+  nodes.forEach(n=>{refreshNode(n);});
+  renderArrows();
+}
+
+function collectData(){
+  const find=r=>(nodes.find(n=>n.role===r)||{}).name||'';
+  const has=r=>nodes.some(n=>n.role===r);
+  return {
+    azienda:aziendaName,titolare:find('DATORE DI LAVORO'),
+    rspp:find('RSPP'),medico:find('MEDICO COMP.'),rls:find('RLS'),
+    has_delegato:has('DELEGATO'),delegato:find('DELEGATO'),
+    has_dirigente:has('DIRIGENTE'),dirigente:find('DIRIGENTE'),
+    preposti:nodes.filter(n=>n.role==='PREPOSTO').map(n=>({nome:n.name,mansioni:[]})),
+    mansioni_dirette:nodes.filter(n=>n.role==='MANSIONE').map(n=>n.name).filter(Boolean),
+    ps:nodes.filter(n=>n.role==='PRIMO SOCCORSO').flatMap(n=>n.name.split('\n')).filter(Boolean),
+    ai:nodes.filter(n=>n.role==='ANTINCENDIO').flatMap(n=>n.name.split('\n')).filter(Boolean),
+    _layout:nodes.map(n=>({id:n.id,x:n.x,y:n.y,role:n.role,name:n.name,color:n.color,bold:n.bold,w:n.w,h:n.h,autoH:n.autoH})),
+    _arrows:arrows.map(a=>({from:a.from,to:a.to})),
+  };
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(collectData(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='organigramma.json';a.click();
+  setStatus('JSON esportato');setTimeout(()=>setStatus(''),2000);
+}
+function importJSON(){document.getElementById('file-input').click();}
+function onFileLoad(e){
+  const file=e.target.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      pushUndo();
+      const d=JSON.parse(ev.target.result);
+      nodes=[];arrows=[];nextId=1;
+      document.getElementById('nodes-layer').innerHTML='';
+      if(d.azienda) aziendaName=d.azienda;
+      if(d._layout&&d._layout.length){
+        d._layout.forEach(n=>{nodes.push({autoH:true,...n});if(n.id>=nextId)nextId=n.id+1;document.getElementById('nodes-layer').appendChild(createNodeEl({autoH:true,...n}));});
+        (d._arrows||[]).forEach(a=>arrows.push({id:nextId++,from:a.from,to:a.to}));
+      } else {
+        addNode('RSPP',d.rspp||'','#1A5276',false,180,70);
+        addNode('DATORE DI LAVORO',d.titolare||'','#0D2B5E',true,380,70);
+        addNode('MEDICO COMP.',d.medico||'','#1A5276',false,580,70);
+        if(d.has_delegato) addNode('DELEGATO',d.delegato||'','#2E86C1',false,380,200);
+        if(d.has_dirigente) addNode('DIRIGENTE',d.dirigente||'','#2980B9',false,380,330);
+        (d.preposti||[]).forEach((p,i)=>addNode('PREPOSTO',p.nome||'','#2E86C1',false,180+i*200,460));
+        if(d.mansioni_dirette?.length) addNode('MANSIONE',d.mansioni_dirette.join('\n'),'#1A5276',false,600,460);
+        if(d.rls) addNode('RLS',d.rls,'#B8860B',false,840,70);
+        if(d.ps?.length) addNode('PRIMO SOCCORSO',d.ps.join('\n'),'#1E8449',false,840,200);
+        if(d.ai?.length) addNode('ANTINCENDIO',d.ai.join('\n'),'#C0392B',false,840,340);
+      }
+      selectItem(null);renderArrows();
+      setStatus('JSON importato');setTimeout(()=>setStatus(''),2500);
+    }catch(err){setStatus('Errore JSON: '+err.message);}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+
+// ═══════════════════════════════════════════════════
+//  EXPORT PDF — supporta frecce rette/curve e scala grigi
+// ═══════════════════════════════════════════════════
+function exportPDF(){
+  if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){
+    alert('Libreria jsPDF non caricata.\nServe connessione internet la prima volta.');return;
+  }
+  const {jsPDF}=window.jspdf||window;
+  const azienda=aziendaName||(prompt('Nome azienda per il PDF:','')||'');
+  if(azienda) aziendaName=azienda;
+
+  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
+  const PW=841.89,PH=595.28,PM=18;
+
+  function setFill(hex){const [r,g,b]=hexToRgb(hex);doc.setFillColor(r,g,b);}
+  function setStroke(hex){const [r,g,b]=hexToRgb(hex);doc.setDrawColor(r,g,b);}
+  function setTC(hex){const [r,g,b]=hexToRgb(hex);doc.setTextColor(r,g,b);}
+
+  doc.setFillColor(255,255,255);doc.rect(0,0,PW,PH,'F');
+  setTC('#0D2B5E');doc.setFont('helvetica','bold');doc.setFontSize(14);
+  doc.text((aziendaName||'NOME AZIENDA').toUpperCase(),PW/2,PM+12,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);setTC('#1A5276');
+  doc.text('ORGANIGRAMMA DELLA SICUREZZA \u2013 D.Lgs. 81/08',PW/2,PM+27,{align:'center'});
+  setStroke('#2E86C1');doc.setLineWidth(1.2);doc.line(PM,PM+38,PW-PM,PM+38);
+
+  if(nodes.length===0){doc.save('organigramma.pdf');return;}
+  const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);
+  const minX=Math.min(...xs)-10,minY=Math.min(...ys)-10;
+  const maxX=Math.max(...nodes.map(n=>n.x+nodeW(n)))+10;
+  const maxY=Math.max(...nodes.map(n=>n.y+nodeH(n)))+10;
+  const cW=maxX-minX,cH=maxY-minY;
+  const availW=PW-2*PM,availH=PH-PM-50;
+  const sc=Math.min(availW/cW,availH/cH,1.0);
+  const offX=PM+(availW-cW*sc)/2,offY=PM+48;
+
+  function px(x){return offX+(x-minX)*sc;}
+  function py(y){return offY+(y-minY)*sc;}
+  function ps(v){return v*sc;}
+
+  const arrowRgb = grayscaleMode ? [102,102,102] : [46,134,193];
+
+  // Frecce PDF
+  arrows.forEach(a=>{
+    const f=nodes.find(n=>n.id===a.from),t=nodes.find(n=>n.id===a.to);
+    if(!f||!t) return;
+    const fx=px(f.x+nodeW(f)/2),fy=py(f.y+nodeH(f));
+    const tx=px(t.x+nodeW(t)/2),ty=py(t.y);
+    const my=(fy+ty)/2;
+    doc.setDrawColor(...arrowRgb);doc.setLineWidth(1.2*sc);
+
+    if(straightArrows){
+      // Spezzata ortogonale retta
+      doc.line(fx,fy,fx,my);
+      doc.line(fx,my,tx,my);
+      doc.line(tx,my,tx,ty);
+    } else {
+      // Bézier cubica
+      let lx=fx,ly=fy;
+      for(let i=1;i<=16;i++){
+        const tt=i/16;
+        const bx=(1-tt)**3*fx+3*(1-tt)**2*tt*fx+3*(1-tt)*tt**2*tx+tt**3*tx;
+        const by=(1-tt)**3*fy+3*(1-tt)**2*tt*my+3*(1-tt)*tt**2*my+tt**3*ty;
+        doc.line(lx,ly,bx,by);lx=bx;ly=by;
+      }
+    }
+    // Punta freccia
+    const as=5*sc;
+    doc.setFillColor(...arrowRgb);
+    doc.triangle(tx,ty,tx-as*0.6,ty-as,tx+as*0.6,ty-as,'F');
+  });
+
+  // Nodi PDF
+  // Font fissi e leggibili — NON dipendono dalla scala SVG.
+  // La scala influisce solo sulle dimensioni geometriche delle box, non sul testo.
+  const FROLE = 7.5;   // pt — testo ruolo nell'header
+  const FNAME = 8.5;   // pt — nome normale
+  const FNAMEB= 9.5;   // pt — nome bold (DdL)
+  // Interlinea testo nome in pt (fisso, non scalato)
+  const LHP = 11;
+
+  nodes.filter(n=>!n.isNota).forEach(n=>{
+    const x=px(n.x),y=py(n.y),w=ps(nodeW(n)),h=ps(nodeH(n)),hh=ps(DEF_HH);
+    const r=Math.max(2,5*sc);
+    const c = effectiveColor(n.color);
+
+    // ── Ombra ──
+    const shadowColor = grayscaleMode ? [180,180,180] : [192,205,224];
+    doc.setFillColor(...shadowColor);
+    doc.roundedRect(x+2*sc,y+2*sc,w,h,r,r,'F');
+
+    // ── Corpo principale ──
+    const [cr,cg,cb]=hexToRgb(c);
+    doc.setFillColor(cr,cg,cb);
+    doc.setDrawColor(255,255,255);
+    doc.setLineWidth(sc);
+    doc.roundedRect(x,y,w,h,r,r,'FD');
+
+    // ── Header scuro ──
+    const dc=darken(c);
+    const [dr,dg,db]=hexToRgb(dc);
+    doc.setFillColor(dr,dg,db);
+    doc.setDrawColor(dr,dg,db);
+    // Arrotondato solo in alto, poi rettangolo per chiudere in basso
+    doc.roundedRect(x,y,w,hh,r,r,'F');
+    doc.rect(x,y+hh/2,w,hh/2,'F');   // riempie la metà inferiore dell'header (angoli dritti)
+
+    // ── Testo ruolo — centrato verticalmente nell'header ──
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(FROLE);
+    doc.setTextColor(255,255,255);
+    // In jsPDF y è la baseline; centro = y + hh/2, offset baseline ~0.35*fontSize
+    const roleY = y + hh/2 + FROLE*0.35;
+    doc.text(n.role, x+w/2, roleY, {align:'center', maxWidth:w-4*sc});
+
+    // ── Testo nome — parte subito sotto l'header ──
+    const lines=(n.name||'').split('\n').filter(Boolean);
+    if(lines.length){
+      doc.setFont('helvetica', n.bold?'bold':'normal');
+      doc.setFontSize(n.bold ? FNAMEB : FNAME);
+      doc.setTextColor(255,255,255);
+      const fs = n.bold ? FNAMEB : FNAME;
+      // Prima riga: baseline a hh + padding fisso 5pt + offset baseline
+      const firstLineY = y + hh + 5 + fs*0.85;
+      lines.forEach((ln,i)=>{
+        const lineY = firstLineY + i*LHP;
+        // Sicurezza: non stampare oltre il fondo della box
+        if(lineY < y+h-2) doc.text(ln, x+w/2, lineY, {align:'center', maxWidth:w-4*sc});
+      });
+    }
+  });
+
+  // ── Note PDF — box tratteggiata, testo nero corsivo ──
+  nodes.filter(n=>n.isNota).forEach(n=>{
+    const x=px(n.x),y=py(n.y),w=ps(nodeW(n)),h=ps(nodeH(n));
+    const r=Math.max(2,4*sc);
+    // Sfondo bianco quasi opaco
+    doc.setFillColor(255,255,250);
+    doc.setDrawColor(130,130,130);
+    doc.setLineWidth(0.8);
+    doc.roundedRect(x,y,w,h,r,r,'FD');
+    // Bordo tratteggiato simulato (jsPDF non ha dasharray, usiamo linea normale sottile)
+    // Testo
+    const lines=(n.name||'').split('\n').filter(Boolean);
+    if(lines.length){
+      doc.setFont('helvetica','italic');
+      doc.setFontSize(8);
+      doc.setTextColor(30,30,30);
+      const lh=10; // interlinea nota PDF
+      const firstY=y+8+8*0.85;
+      lines.forEach((ln,i)=>{
+        const ly=firstY+i*lh;
+        if(ly<y+h-2) doc.text(ln,x+w/2,ly,{align:'center',maxWidth:w-4*sc});
+      });
+    }
+  });
+
+  const fname=(aziendaName?aziendaName.replace(/\s+/g,'_')+'_':'')+'organigramma.pdf';
+  doc.save(fname);
+  setStatus('PDF salvato: '+fname);setTimeout(()=>setStatus(''),3000);
+}
+
+function resizeSvg(){
+  const w=document.getElementById('canvas-wrap');
+  const sv=document.getElementById('cv');
+  sv.setAttribute('width',w.clientWidth);sv.setAttribute('height',w.clientHeight);
+  ['cv-bg','grid-rect'].forEach(id=>{
+    document.getElementById(id).setAttribute('width',w.clientWidth);
+    document.getElementById(id).setAttribute('height',w.clientHeight);
+  });
+}
+window.addEventListener('resize',resizeSvg);resizeSvg();applyTransform();
+
+// Demo
+(function(){
+  const ddl=addNode('DATORE DI LAVORO','Mario Rossi','#0D2B5E',true,380,70);
+  const del=addNode('DELEGATO','Luigi Bianchi','#2E86C1',false,380,200);
+  const dir=addNode('DIRIGENTE','Carlo Verdi','#2980B9',false,380,330);
+  const p1=addNode('PREPOSTO','Preposto A','#2E86C1',false,200,460);
+  const p2=addNode('PREPOSTO','Preposto B','#2E86C1',false,380,460);
+  const man=addNode('MANSIONE','Operaio\nMagazziniere\nImpiegato','#1A5276',false,580,460);
+  const rs=addNode('RSPP','Rossi R.','#1A5276',false,160,70);
+  const med=addNode('MEDICO COMP.','Dott. Neri','#1A5276',false,620,70);
+  const rls=addNode('RLS','Gialli G.','#B8860B',false,850,70);
+  const ps=addNode('PRIMO SOCCORSO','Addetto 1\nAddetto 2\nAddetto 3','#1E8449',false,850,185);
+  const ai=addNode('ANTINCENDIO','Addetto 1\nAddetto 2','#C0392B',false,850,385);
+  [[ddl,del],[del,dir],[dir,p1],[dir,p2],[dir,man]].forEach(([f,t])=>arrows.push({id:nextId++,from:f.id,to:t.id}));
+  selectItem(null);renderArrows();
+  // Reset undo stack dopo il demo iniziale
+  undoStack=[];document.getElementById('btn-undo').disabled=true;
+})();
+</script>
+</body>
+</html>
